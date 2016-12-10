@@ -57,7 +57,8 @@ ConfigureInput::ConfigureInput(QWidget* parent)
 
 void ConfigureInput::handleClick() {
     QPushButton* sender = qobject_cast<QPushButton*>(QObject::sender());
-    previous_mapping = sender->text();
+    QVariant key_variant = sender->property("key");
+    previous_mapping = key_variant.value<QString>();
     sender->setText(tr("[waiting]"));
     sender->setFocus();
     grabKeyboard();
@@ -68,7 +69,8 @@ void ConfigureInput::handleClick() {
 
 void ConfigureInput::applyConfiguration() {
     for (int i = 0; i < Settings::NativeInput::NUM_INPUTS; ++i) {
-        int value = getKeyValue(input_mapping[Settings::NativeInput::Values(i)]->text());
+        QVariant key_variant = input_mapping[Settings::NativeInput::Values(i)]->property("key");
+        int value = getKeyValue(key_variant.value<QString>());
         Settings::values.input_mappings[Settings::NativeInput::All[i]] = value;
     }
     Settings::Apply();
@@ -78,6 +80,7 @@ void ConfigureInput::setConfiguration() {
     for (int i = 0; i < Settings::NativeInput::NUM_INPUTS; ++i) {
         QString keyValue = getKeyName(Settings::values.input_mappings[i]);
         input_mapping[Settings::NativeInput::Values(i)]->setText(keyValue);
+        input_mapping[Settings::NativeInput::Values(i)]->setProperty("key", keyValue);
     }
 }
 
@@ -93,10 +96,13 @@ void ConfigureInput::keyPressEvent(QKeyEvent* event) {
 
 void ConfigureInput::setKey() {
     const QString key_value = getKeyName(key_pressed);
-    if (key_pressed == Qt::Key_Escape)
+    if (key_pressed == Qt::Key_Escape) {
         changing_button->setText(previous_mapping);
-    else
+        changing_button->setProperty("key", previous_mapping);
+    } else {
         changing_button->setText(key_value);
+        changing_button->setProperty("key", key_value);
+    }
     removeDuplicates(key_value);
     key_pressed = Qt::Key_unknown;
     releaseKeyboard();
@@ -138,9 +144,12 @@ Qt::Key ConfigureInput::getKeyValue(const QString& text) const {
 void ConfigureInput::removeDuplicates(const QString& newValue) {
     for (int i = 0; i < Settings::NativeInput::NUM_INPUTS; ++i) {
         if (changing_button != input_mapping[Settings::NativeInput::Values(i)]) {
-            const QString oldValue = input_mapping[Settings::NativeInput::Values(i)]->text();
-            if (newValue == oldValue)
+            QVariant key_variant = input_mapping[Settings::NativeInput::Values(i)]->property("key");
+            const QString oldValue = key_variant.value<QString>();
+            if (newValue == oldValue) {
                 input_mapping[Settings::NativeInput::Values(i)]->setText("");
+                input_mapping[Settings::NativeInput::Values(i)]->setProperty("key", "");
+            }
         }
     }
 }
@@ -149,5 +158,6 @@ void ConfigureInput::restoreDefaults() {
     for (int i = 0; i < Settings::NativeInput::NUM_INPUTS; ++i) {
         const QString keyValue = getKeyName(Config::defaults[i].toInt());
         input_mapping[Settings::NativeInput::Values(i)]->setText(keyValue);
+        input_mapping[Settings::NativeInput::Values(i)]->setProperty("key", keyValue);
     }
 }
